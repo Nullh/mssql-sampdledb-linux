@@ -1,0 +1,95 @@
+<h1 id="commands">Commands</h1>
+<h2 id="start-container-">Start container:</h2>
+<pre><code class="lang-POWERSHELL">&gt; docker run `
+-e &#39;ACCEPT_EULA=Y&#39; `
+-e &#39;SA_PASSWORD=El3phan7&#39; `
+-p 1435:1433 -d `
+--name TestSQL `
+microsoft/mssql-server-linux
+</code></pre>
+<h2 id="start-container-with-edition-">Start container with edition:</h2>
+<pre><code class="lang-POWERSHELL">&gt; docker run -e &#39;ACCEPT_EULA=Y&#39; -e &#39;SA_PASSWORD=El3phan7&#39; -e &#39;MSSQL_PID=Developer&#39; -p 1435:1433 -d microsoft/mssql-server-linux
+</code></pre>
+<h2 id="change-your-sa-password-after-start-">Change your SA password after start:</h2>
+<pre><code class="lang-POWERSHELL">&gt; docker exec -it sql1 /opt/mssql-tools/bin/sqlcmd `
+   -S localhost -U SA -P &quot;El3phan7&quot; `
+   -Q &quot;ALTER LOGIN SA WITH PASSWORD=&#39;5ecure?Pa55word&#39;&quot;
+</code></pre>
+<h2 id="connect-to-container-using-sqlcmd-">Connect to container using SQLCMD:</h2>
+<pre><code class="lang-POWERSHELL">&gt; docker exec -it TestSQL &quot;bash&quot;
+&gt; /opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P &#39;El3phan7&#39;
+</code></pre>
+<h2 id="database-script-">Database Script:</h2>
+<pre><code class="lang-SQL">CREATE DATABASE TestDB;
+GO
+
+SELECT Name FROM sys.Databases;
+GO
+
+USE TestDB;
+CREATE TABLE Inventory (id INT IDENTITY(1, 1), name NVARCHAR(50), quantity INT);
+INSERT INTO Inventory VALUES (&#39;banana&#39;, 100), (&#39;apple&#39;, 152);
+GO
+
+SELECT * FROM TestDB.dbo.Inventory;
+GO
+QUIT
+</code></pre>
+<h2 id="start-container-and-mount-virtual-directory-">Start container and mount virtual directory:</h2>
+<pre><code class="lang-POWERSHELL">&gt; docker run `
+-e &#39;ACCEPT_EULA=Y&#39; -e &#39;SA_PASSWORD=El3phan7&#39; `
+-p 1435:1433 `
+-v C:\SampleDB:/var/opt/mssql/SampleDB `
+-d --name TestSQLV `
+microsoft/mssql-server-linux
+</code></pre>
+<h2 id="dockerfile-">dockerfile:</h2>
+<pre><code class="lang-DOCKER">FROM microsoft/mssql-server-linux
+
+ENV SA_PASSWORD=El3phan7
+ENV ACCEPT_EULA=Y
+
+HEALTHCHECK --interval=10s \
+    CMD /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P El3phan7 \
+    -Q &quot;CREATE DATABASE [SampleDB] ON (FILENAME = &#39;/var/opt/mssql/SampleDB/SampleDB.mdf&#39;),(FILENAME = &#39;/var/opt/mssql/SampleDB/SampleDB_log.ldf&#39;) FOR ATTACH&quot;
+</code></pre>
+<h2 id="better-dockerfile-">Better dockerfile:</h2>
+<pre><code class="lang-DOCKER">FROM microsoft/mssql-server-linux
+
+ENV SA_PASSWORD=El3phan7
+ENV ACCEPT_EULA=Y
+
+RUN mkdir -p /usr/src/app
+WORKDIR /usr/src/app
+
+COPY . /usr/src/app
+
+CMD /bin/bash ./entrypoint.sh
+</code></pre>
+<h2 id="entrypoint-sh-this-needs-lf-line-terminators-">entrypoint.sh (This needs LF line terminators!):</h2>
+<pre><code class="lang-BASH">set -e 
+setup_db=&quot;/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P El3phan7 -l 20 -d master -i SetupSampleDB.sql&quot;
+
+
+while true; do
+    $setup_db &amp; /opt/mssql/bin/sqlservr
+done
+</code></pre>
+<h2 id="setupsampledb-sql-">SetupSampleDB.sql:</h2>
+<pre><code class="lang-SQL">CREATE DATABASE [SampleDB] 
+    ON (FILENAME = &#39;/var/opt/mssql/SampleDB/SampleDB.mdf&#39;),
+    (FILENAME = &#39;/var/opt/mssql/SampleDB/SampleDB_log.ldf&#39;) 
+    FOR ATTACH;
+GO
+</code></pre>
+<h2 id="build-custom-image-">Build custom image:</h2>
+<pre><code class="lang-POWERSHELL">&gt; cd \path\to\dockerfile\directory
+&gt; docker build -t mssql-sampledb-linux .
+</code></pre>
+<h2 id="custom-dockerfile-run-command-">Custom dockerfile Run Command:</h2>
+<pre><code class="lang-POWERSHELL">&gt; docker run `
+-p 1435:1433 `
+-v C:\SampleDB:/var/opt/mssql/SampleDB `
+-d --name TestSQLV `
+mssql-sampledb-linux
+</code></pre>
